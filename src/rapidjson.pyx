@@ -1,5 +1,5 @@
 # distutils: language = c++
-from cpython cimport PyList_New, PyUnicode_AsUTF8String
+from cpython cimport PyList_New, PyUnicode_AsUTF8String, PyBytes_GET_SIZE, PyBytes_AS_STRING
 cimport libcpp
 from libcpp.string cimport string
 from cython.operator cimport dereference, preincrement
@@ -77,8 +77,11 @@ cdef class JSONEncoder(object):
 
     @cython.boundscheck(False)
     @cython.wraparound(False)
-    cdef void encode_inner(self, obj, StringWriter *writer):
+    cdef void encode_inner(self, obj, StringWriter *writer) except+: # TODO: Consideration for C++ excetions? How does rapidjson do errors?
+        # TODO: Add circular reference checks
         cdef size_t l
+        cdef Py_ssize_t length
+        cdef char *buff
 
         if isinstance(obj, bool):
             writer.Bool(<libcpp.bool>obj)
@@ -92,30 +95,42 @@ cdef class JSONEncoder(object):
             writer.String(obj, len(obj), False)
         elif isinstance(obj, unicode):
             encoded = PyUnicode_AsUTF8String(obj)
-            writer.String(encoded, len(encoded), False)
+            length = PyBytes_GET_SIZE(encoded);
+            buff = PyBytes_AS_STRING(encoded);
+            writer.String(buff, length, False)
         elif isinstance(obj, str):
-            # TODO: Check if it's valid utf8. If not, gotta raise error.
-            writer.String(obj, len(obj), False)
+            # TODO: Check if it's valid utf8. If not, gotta raise error. Or maybe rapidjson do the check?
+            length = PyBytes_GET_SIZE(obj);
+            buff = PyBytes_AS_STRING(obj);
+            writer.String(buff, length, False)
         elif isinstance(obj, (list, tuple)):
             writer.StartArray()
+            length = len(obj)
 
             for item in obj:
                 self.encode_inner(item, writer)
 
             writer.EndArray()
+            # TODO: Properly handle length, maybe this is what cause the segfault?
         elif isinstance(obj, dict):
             writer.StartObject()
 
-            for k, v in obj.items():
-                if isinstance(obj, bytes):
-                    l = len(k)
+            for key, value in obj.items():
+                if isinstance(key, unicode):
+                    encoded = PyUnicode_AsUTF8String(key)
+                    length = PyBytes_GET_SIZE(encoded);
+                    buff = PyBytes_AS_STRING(encoded);
+                    writer.Key(buff, length, False)
+                elif isinstance(key, str):
+                    # TODO: Check if it's valid utf8. If not, gotta raise error. Or maybe rapidjson do the check?
+                    length = PyBytes_GET_SIZE(key);
+                    buff = PyBytes_AS_STRING(key);
+                    writer.Key(buff, length, False)
                 else:
-                    k = bytes(k)
-                    l = len(k)
+                    # TODO: Coerce values to string, but only if they are hashable
+                    raise NotImplementedError()
 
-                writer.Key(k, l, False)
-
-                self.encode_inner(v, writer)
+                self.encode_inner(value, writer)
 
             writer.EndObject()
         else:
