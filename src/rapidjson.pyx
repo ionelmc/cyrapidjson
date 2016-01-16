@@ -199,6 +199,8 @@ cdef class JSONDecoder(object):
                 d[dereference(it2).name.GetString().decode('UTF-8')] = self.decode_inner(dereference(it2).value)
                 preincrement(it2)
             return d
+        else:
+            raise NotImplementedError("TODO")
 
 
 cdef JSONEncoder _default_encoder = JSONEncoder()
