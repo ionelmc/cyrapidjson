@@ -1,5 +1,5 @@
 # distutils: language = c++
-from cpython cimport PyList_New
+from cpython cimport PyList_New, PyUnicode_AsUTF8String
 cimport libcpp
 from libcpp.string cimport string
 from cython.operator cimport dereference, preincrement
@@ -90,8 +90,12 @@ cdef class JSONEncoder(object):
             writer.Int64(obj)
         elif isinstance(obj, bytes):
             writer.String(obj, len(obj), False)
-        elif isinstance(obj, basestring):
-            writer.String(bytes(obj.encode('utf-8')), len(obj), False)
+        elif isinstance(obj, unicode):
+            encoded = PyUnicode_AsUTF8String(obj)
+            writer.String(encoded, len(encoded), False)
+        elif isinstance(obj, str):
+            # TODO: Check if it's valid utf8. If not, gotta raise error.
+            writer.String(obj, len(obj), False)
         elif isinstance(obj, (list, tuple)):
             writer.StartArray()
 
