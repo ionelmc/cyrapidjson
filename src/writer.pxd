@@ -19,6 +19,6 @@ cdef extern from "writer.h" namespace "rapidjson":
         bool Key(const char* str, size_t length, bool copy)
         bool EndObject()
         bool StartArray()
-        bool EndArray(size_t elementCount)
+        bool EndArray()
 
 ctypedef Writer[StringBuffer, UTF8[char], UTF8[char], CrtAllocator] StringWriter
