@@ -110,8 +110,7 @@ cdef class JSONEncoder(object):
             for item in obj:
                 self.encode_inner(item, writer)
 
-            writer.EndArray()
-            # TODO: Properly handle length, maybe this is what cause the segfault?
+            writer.EndArray(length)
         elif isinstance(obj, dict):
             writer.StartObject()
 
